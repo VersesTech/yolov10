@@ -1,28 +1,25 @@
 import argparse
 from ultralytics import YOLOv10
-from prepare_data import create_merged_dataset
+from ultralytics import YOLO
 
-
-def train_yolov10(
+def train_yolo(
     model_type,
     data_yaml,
     epochs,
     batch_size,
     img_size,
     export_format=None,
-    prepare_data=True,
 ):
-    # Prepare the dataset if requested
-    if prepare_data:
-        print("Preparing and merging datasets...")
-        data_yaml = create_merged_dataset()
-        print(f"Using merged dataset from: {data_yaml}")
-
     # Load the model
-    if model_type.startswith("jameslahm/yolov10x"):
-        model = YOLOv10.from_pretrained(model_type)
+    if 'yolov10' in model_type:
+        if model_type.startswith("jameslahm/yolov10m"):
+            model = YOLOv10.from_pretrained(model_type)
+        else:
+            model = YOLOv10(model_type)
+    elif 'yolov8' in model_type:
+        model = YOLO(model_type)
     else:
-        model = YOLOv10(model_type)
+        raise "Model not supported"
 
     # Train the model
     model.train(
@@ -30,6 +27,10 @@ def train_yolov10(
         epochs=epochs,
         batch=batch_size,
         imgsz=img_size,
+        patience=10,
+        device=0,
+        freeze=10,
+        close_mosaic=15
     )
 
     # Export the model if specified
@@ -43,8 +44,8 @@ def export_model(model_path, export_format):
 
 
 def main():
-    print("Training YOLOv10 model")
-    parser = argparse.ArgumentParser(description="Train YOLOv10 model")
+    print("Training YOLO model")
+    parser = argparse.ArgumentParser(description="Train YOLO model")
     parser.add_argument(
         "--model",
         type=str,
@@ -60,27 +61,21 @@ def main():
     parser.add_argument(
         "--epochs", type=int, default=100, help="Number of epochs to train"
     )
-    parser.add_argument("--batch", type=int, default=2, help="Batch size")
+    parser.add_argument("--batch", type=int, default=32, help="Batch size")
     parser.add_argument("--imgsz", type=int, default=640, help="Image size")
     parser.add_argument(
         "--export", type=str, choices=["onnx"], help="Export format (optional)"
     )
-    parser.add_argument(
-        "--skip-data-prep",
-        action="store_true",
-        help="Skip dataset preparation and use existing data YAML",
-    )
 
     args = parser.parse_args()
 
-    train_yolov10(
+    train_yolo(
         args.model,
         args.data,
         args.epochs,
         args.batch,
         args.imgsz,
         args.export,
-        not args.skip_data_prep,
     )
 
 
